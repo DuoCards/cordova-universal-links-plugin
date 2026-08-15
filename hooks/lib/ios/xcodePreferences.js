@@ -7,6 +7,7 @@ Which is:
 */
 
 var path = require('path');
+var fs = require('fs');
 var compare = require('node-version-compare');
 var ConfigXmlHelper = require('../configXmlHelper.js');
 var IOS_DEPLOYMENT_TARGET = '8.0';
@@ -27,6 +28,13 @@ module.exports = {
 function enableAssociativeDomainsCapability(cordovaContext) {
   context = cordovaContext;
 
+  // Cordova iOS 8 already configures CODE_SIGN_ENTITLEMENTS for both build
+  // configurations. Its generated Xcode project no longer exposes the old
+  // projectFile API used below.
+  if (usesCordovaIos8ProjectStructure()) {
+    return;
+  }
+
   var projectFile = loadProjectFile();
 
   // adjust preferences
@@ -37,6 +45,10 @@ function enableAssociativeDomainsCapability(cordovaContext) {
 
   // save changes
   projectFile.write();
+}
+
+function usesCordovaIos8ProjectStructure() {
+  return fs.existsSync(path.join(iosPlatformPath(), 'App', 'Entitlements-Debug.plist'));
 }
 
 // endregion

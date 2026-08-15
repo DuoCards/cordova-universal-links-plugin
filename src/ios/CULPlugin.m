@@ -11,6 +11,7 @@
 #import "CDVPluginResult+CULPlugin.h"
 #import "CDVInvokedUrlCommand+CULPlugin.h"
 #import "CULConfigJsonParser.h"
+#import "CULSceneDelegateHandler.h"
 
 @interface CULPlugin() {
     NSArray *_supportedHosts;
@@ -26,6 +27,14 @@
 
 - (void)pluginInitialize {
     [self localInit];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleContinueUserActivityNotification:)
+                                                 name:CULContinueUserActivityNotification
+                                               object:nil];
+
+    for (NSUserActivity *userActivity in CULConsumePendingUserActivities()) {
+        [self handleUserActivity:userActivity];
+    }
     // Can be used for testing.
     // Just uncomment, close the app and reopen it. That will simulate application launch from the link.
 //    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onResume:) name:UIApplicationWillEnterForegroundNotification object:nil];
@@ -64,7 +73,19 @@
     return YES;
 }
 
+- (void)handleContinueUserActivityNotification:(NSNotification *)notification {
+    if (![notification.object isKindOfClass:[NSUserActivity class]]) {
+        return;
+    }
+
+    CULDiscardPendingUserActivity(notification.object);
+    [self handleUserActivity:notification.object];
+}
+
 - (void)onAppTerminate {
+    [[NSNotificationCenter defaultCenter] removeObserver:self
+                                                    name:CULContinueUserActivityNotification
+                                                  object:nil];
     _supportedHosts = nil;
     _subscribers = nil;
     _storedEvent = nil;

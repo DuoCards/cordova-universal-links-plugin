@@ -9,17 +9,21 @@ var fs = require('fs');
 var ConfigXmlHelper = require('./lib/configXmlHelper.js');
 
 module.exports = function(ctx) {
-  run(ctx);
+  var iosProjectFilePath = path.join(ctx.opts.projectRoot, 'platforms', 'ios');
+  if (usesCordovaIos8ProjectStructure(iosProjectFilePath)) {
+    return;
+  }
+
+  run(ctx, iosProjectFilePath);
 };
 
 /**
  * Run the hook logic.
  *
  * @param {Object} ctx - cordova context object
+ * @param {String} iosProjectFilePath absolute path to ios platform directory
  */
-function run(ctx) {
-  var projectRoot = ctx.opts.projectRoot;
-  var iosProjectFilePath = path.join(projectRoot, 'platforms', 'ios');
+function run(ctx, iosProjectFilePath) {
   var configXmlHelper = new ConfigXmlHelper(ctx);
   var newProjectName = configXmlHelper.getProjectName();
 
@@ -42,6 +46,17 @@ function run(ctx) {
     console.warn('Failed to rename .entitlements file.');
     console.warn(err);
   }
+}
+
+/**
+ * Cordova iOS 8 uses fixed App/Entitlements-{Debug,Release}.plist files.
+ * They are managed during prepare and must not be renamed.
+ *
+ * @param {String} iosProjectFilePath absolute path to ios platform directory
+ * @return {Boolean} whether the generated project uses the Cordova iOS 8 structure
+ */
+function usesCordovaIos8ProjectStructure(iosProjectFilePath) {
+  return fs.existsSync(path.join(iosProjectFilePath, 'App', 'Entitlements-Debug.plist'));
 }
 
 // region Private API

@@ -15,7 +15,6 @@ var ASSOCIATED_DOMAINS = 'com.apple.developer.associated-domains';
 var context;
 var projectRoot;
 var projectName;
-var entitlementsFilePath;
 
 module.exports = {
   generateAssociatedDomainsEntitlements: generateEntitlements
@@ -32,10 +31,11 @@ module.exports = {
 function generateEntitlements(cordovaContext, pluginPreferences) {
   context = cordovaContext;
 
-  var currentEntitlements = getEntitlementsFileContent();
-  var newEntitlements = injectPreferences(currentEntitlements, pluginPreferences);
-
-  saveContentToEntitlementsFile(newEntitlements);
+  pathsToEntitlementsFiles().forEach(function(filePath) {
+    var currentEntitlements = getEntitlementsFileContent(filePath);
+    var newEntitlements = injectPreferences(currentEntitlements, pluginPreferences);
+    saveContentToEntitlementsFile(filePath, newEntitlements);
+  });
 }
 
 // endregion
@@ -45,11 +45,11 @@ function generateEntitlements(cordovaContext, pluginPreferences) {
 /**
  * Save data to entitlements file.
  *
+ * @param {String} filePath - entitlements file to update
  * @param {Object} content - data to save; JSON object that will be transformed into xml
  */
-function saveContentToEntitlementsFile(content) {
+function saveContentToEntitlementsFile(filePath, content) {
   var plistContent = plist.build(content);
-  var filePath = pathToEntitlementsFile();
 
   // ensure that file exists
   mkpath.sync(path.dirname(filePath));
@@ -63,8 +63,7 @@ function saveContentToEntitlementsFile(content) {
  *
  * @return {String} entitlements file content
  */
-function getEntitlementsFileContent() {
-  var pathToFile = pathToEntitlementsFile();
+function getEntitlementsFileContent(pathToFile) {
   var content;
 
   try {
@@ -138,14 +137,20 @@ function domainsListEntryForHost(host) {
 /**
  * Path to entitlements file.
  *
- * @return {String} absolute path to entitlements file
+ * @return {Array<String>} absolute paths to entitlements files
  */
-function pathToEntitlementsFile() {
-  if (entitlementsFilePath === undefined) {
-    entitlementsFilePath = path.join(getProjectRoot(), 'platforms', 'ios', getProjectName(), 'Resources', getProjectName() + '.entitlements');
+function pathsToEntitlementsFiles() {
+  var iosPlatformPath = path.join(getProjectRoot(), 'platforms', 'ios');
+  var cordovaIos8AppPath = path.join(iosPlatformPath, 'App');
+
+  if (fs.existsSync(path.join(cordovaIos8AppPath, 'Entitlements-Debug.plist'))) {
+    return [
+      path.join(cordovaIos8AppPath, 'Entitlements-Debug.plist'),
+      path.join(cordovaIos8AppPath, 'Entitlements-Release.plist')
+    ];
   }
 
-  return entitlementsFilePath;
+  return [path.join(iosPlatformPath, getProjectName(), 'Resources', getProjectName() + '.entitlements')];
 }
 
 /**
